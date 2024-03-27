@@ -1,0 +1,1 @@
+= Date.FromText(Text.Combine({Text.From([Order_Year]), "-", Text.From([Order_Month]), "-01"}))

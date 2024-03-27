@@ -1,0 +1,123 @@
+--Monthly Recurring Revenue (MRR)
+SELECT
+    EXTRACT(YEAR FROM o.Order_Date) AS Order_Year,
+    FORMAT_DATE('%B', DATE_TRUNC(o.Order_Date, MONTH)) AS Order_Month,
+    REPLACE(CAST(COUNT(*) AS STRING), '.', ',') AS MRR
+FROM
+    `aws-saas.amazon.orders` as o
+JOIN
+    `aws-saas.amazon.products` as p ON o.Row_ID = p.Row_ID
+WHERE
+    is_Refunded = False
+    AND EXTRACT(YEAR FROM o.Order_Date) BETWEEN 2020 AND 2023
+GROUP BY
+    Order_Year, Order_Month
+ORDER BY
+    Order_Year;
+
+--Average Monthly Revenue (AMR) 
+SELECT
+    EXTRACT(YEAR FROM o.Order_Date) AS Order_Year,
+    FORMAT_DATE('%B', DATE_TRUNC(o.Order_Date, MONTH)) AS Order_Month,
+    REPLACE(CAST(ROUND(AVG(p.Profit), 2) AS STRING), '.', ',') AS AMR
+FROM
+    `aws-saas.amazon.orders` AS o
+JOIN
+    `aws-saas.amazon.products` AS p ON o.Row_ID = p.Row_ID
+WHERE
+    is_Refunded = False
+    AND EXTRACT(YEAR FROM o.Order_Date) BETWEEN 2020 AND 2023
+GROUP BY
+    Order_Year, Order_Month
+ORDER BY
+    Order_Year, Order_Month;
+
+--Churn 
+SELECT
+    EXTRACT(YEAR FROM o.Order_Date) AS Order_Year,
+       FORMAT_DATE('%B', DATE_TRUNC(o.Order_Date, MONTH)) AS Order_Month,
+    ROUND((COUNT(CASE WHEN p.is_Refunded = True THEN p.License END) /
+     NULLIF(COUNT(CASE WHEN p.is_Refunded = False THEN p.License END), 0) * 100), 2) AS Churn
+FROM
+    `aws-saas.amazon.orders` AS o
+JOIN
+    `aws-saas.amazon.products` AS p ON o.Row_ID = p.Row_ID
+GROUP BY
+    Order_Year, Order_Month
+ORDER BY
+    Order_Year, Order_Month;
+
+--Suspended Subscriptions
+SELECT
+    EXTRACT(YEAR FROM o.Order_Date) AS Order_Year,
+    FORMAT_DATE('%B', DATE_TRUNC(o.Order_Date, MONTH)) AS Order_Month,
+    REPLACE(CAST(COUNT(CASE WHEN p.is_Refunded = True THEN p.License END) AS STRING), '.', ',') AS Suspended_Subscriptions
+FROM
+    `aws-saas.amazon.orders` AS o
+JOIN
+    `aws-saas.amazon.products` AS p ON o.Row_ID = p.Row_ID
+GROUP BY
+    Order_Year, Order_Month
+ORDER BY
+    Order_Year, Order_Month;
+
+
+--Refunded Subscriptions
+SELECT
+    EXTRACT(YEAR FROM o.Order_Date) AS Order_Year,
+    FORMAT_DATE('%B', DATE_TRUNC(o.Order_Date, MONTH)) AS Order_Month,
+    REPLACE(CAST(COUNT(DISTINCT o.Customer_ID) AS STRING), '.', ',') AS RS
+FROM
+    `aws-saas.amazon.orders` AS o
+JOIN
+    `aws-saas.amazon.products` AS p ON o.Row_ID = p.Row_ID
+WHERE
+    p.is_Refunded = True
+GROUP BY
+    Order_Year, Order_Month
+ORDER BY
+    Order_Year, Order_Month;
+
+
+-- Number of New Customers per Month
+SELECT
+    EXTRACT(YEAR FROM o.Order_Date) AS Order_Year,
+    FORMAT_DATE('%B', DATE_TRUNC(o.Order_Date, MONTH)) AS Order_Month,
+    REPLACE(CAST(COUNT(DISTINCT o.Customer_ID) AS STRING), '.', ',') AS NCM
+FROM
+    `aws-saas.amazon.orders` AS o
+JOIN
+    `aws-saas.amazon.products` AS p ON o.Row_ID = p.Row_ID
+WHERE
+    NOT EXISTS (
+        SELECT 1
+        FROM `aws-saas.amazon.orders` AS o2
+        WHERE
+            EXTRACT(YEAR FROM o2.Order_Date) = EXTRACT(YEAR FROM o.Order_Date) AND
+            EXTRACT(MONTH FROM o2.Order_Date) = EXTRACT(MONTH FROM o.Order_Date) - 1 AND
+            o2.Customer_ID = o.Customer_ID
+    )
+GROUP BY
+    Order_Year, Order_Month
+ORDER BY
+    Order_Year, Order_Month;
+
+--OPC  (Orders per Customer )
+
+
+SELECT
+    EXTRACT(YEAR FROM o.Order_Date) AS Order_Year,
+    FORMAT_DATE('%B', DATE_TRUNC(o.Order_Date, MONTH)) AS Order_Month,
+    REPLACE(CAST(ROUND(COUNT(o.Order_ID) / COUNT(DISTINCT c.Customer_ID), 2) AS STRING), '.', ',') AS OPE
+FROM
+    `aws-saas.amazon.customers` AS c
+JOIN
+    `aws-saas.amazon.orders` AS o ON c.Customer_id = o.Customer_id
+JOIN
+    `aws-saas.amazon.products` AS p ON o.Row_ID = p.Row_ID
+WHERE
+    p.is_Refunded = False
+GROUP BY
+    Order_Year, Order_Month
+ORDER BY
+    Order_Year, Order_Month;
